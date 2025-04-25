@@ -4,6 +4,10 @@ from tkinter import messagebox
 import pandas as pd
 import os
 from crud import *
+import matplotlib.pyplot as plt
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+from matplotlib.figure import Figure
+
 
 app = tb.Window(themename="cosmo")
 app.title("📊 Phân tích điểm thi THPT 2023")
@@ -210,6 +214,119 @@ tree.configure(yscrollcommand=vsb.set, xscrollcommand=hsb.set)
 vsb.pack(side=RIGHT, fill=Y)
 hsb.pack(side=BOTTOM, fill=X)
 tree.pack(side=LEFT, fill=BOTH, expand=True)
+# === Biểu đồ ===
+
+
+def plot_score_distribution(subject):
+    if subject == "Foreign language":
+        data = df[(df["Foreign language code"] == "N1") & (df["Foreign language"] >= 0.5)]["Foreign language"]
+        title = "Phổ điểm môn Tiếng Anh (Mã N1)"
+    else:
+        data = df[df[subject] >= 0.5][subject]
+        title = f"Phổ điểm môn {subject}"
+
+   
+    bins = [round(x * 0.25, 2) for x in range(0, 41)]  
+
+    counts = pd.cut(data, bins=bins, right=True, include_lowest=True).value_counts().sort_index()
+
+    labels = [f"{interval.left:.2f}-{interval.right:.2f}" for interval in counts.index]
+    values = counts.values
+
+    plt.figure(figsize=(14, 6))
+    bars = plt.bar(labels, values, edgecolor="black")
+
+    for bar, count in zip(bars, values):
+        plt.text(bar.get_x() + bar.get_width() / 2, bar.get_height(), str(count),
+                 ha='center', va='bottom', fontsize=8, rotation=90)
+
+    plt.title(f"{title} - THPT 2023", fontsize=14)
+    plt.xlabel("Khoảng điểm", fontsize=12)
+    plt.ylabel("Số lượng thí sinh", fontsize=12)
+    plt.xticks(rotation=90)
+    plt.grid(axis="y", linestyle="--", alpha=0.6)
+    plt.tight_layout()
+    plt.show()
+
+
+
+
+def open_chart_window():
+    chart_win = tb.Toplevel(app)
+    chart_win.title("📊 Xem phổ điểm")
+    chart_win.geometry("300x180")
+
+    tb.Label(chart_win, text="Chọn môn:", font=("Segoe UI", 10, "bold")).pack(pady=10)
+    subjects = {
+        "Toán": "Mathematics",
+        "Văn": "Literature",
+        "Tiếng Anh (N1)": "Foreign language"
+    }
+    combo_subject = tb.Combobox(chart_win, values=list(subjects.keys()), bootstyle="info")
+    combo_subject.pack()
+
+    def confirm_plot():
+        key = combo_subject.get()
+        if key not in subjects:
+            messagebox.showerror("Lỗi", "Vui lòng chọn môn hợp lệ.")
+            return
+        subject_col = subjects[key]
+        chart_win.destroy()
+        plot_score_distribution(subject_col)
+
+    tb.Button(chart_win, text="📈 Hiện biểu đồ", bootstyle="primary", command=confirm_plot).pack(pady=10)
+
+#====Top tỉnh/thành có nhiều thí sinh đạt điểm 10.==
+def show_top_provinces_chart_gui():
+    global df
+
+    # Tạo cửa sổ mới
+    chart_win = tb.Toplevel(app)
+    chart_win.title("🏆 Top tỉnh có nhiều thí sinh đạt điểm 10")
+    chart_win.geometry("1000x600")
+
+    # Tạo mã sở từ Student ID
+    df["Mã sở"] = df["Student ID"].astype(str).str[:2]
+
+    # Xác định môn thi
+    mon_thi = [
+        "Mathematics", "Literature", "Foreign language",
+        "Physics", "Chemistry", "Biology",
+        "History", "Geography", "Civic education"
+    ]
+
+    # Học sinh có ít nhất 1 môn đạt 10 điểm
+    df["Có điểm 10"] = df[mon_thi].apply(lambda row: any(score == 10 for score in row), axis=1)
+
+    # Đếm số HS có điểm 10 theo Mã sở
+    top_scores = df[df["Có điểm 10"]].groupby("Mã sở").size()
+
+    # Nối với bảng tên sở
+    ma_so_df = pd.read_csv("ma_so_ten_so_gddt.csv", dtype={"Mã sở": str})
+    merged = pd.DataFrame({"Mã sở": top_scores.index, "Số HS": top_scores.values})
+    merged = merged.merge(ma_so_df, on="Mã sở")
+
+    top10 = merged.sort_values("Số HS", ascending=False).head(10)
+
+    # Tạo Figure
+    fig = Figure(figsize=(10, 5), dpi=100)
+    ax = fig.add_subplot(111)
+
+    bars = ax.bar(top10["Tên sở GDĐT"], top10["Số HS"], color="dodgerblue", edgecolor="black")
+
+    for bar in bars:
+        yval = bar.get_height()
+        ax.text(bar.get_x() + bar.get_width() / 2, yval + 10, int(yval), ha='center', va='bottom', fontsize=9)
+
+    ax.set_title("Top tỉnh thành có nhiều thí sinh có điểm 10", fontsize=14)
+    ax.set_ylabel("Số học sinh", fontsize=12)
+    ax.set_xticklabels(top10["Tên sở GDĐT"], rotation=30, ha="right")
+
+    # Hiển thị Figure trong Tkinter
+    canvas = FigureCanvasTkAgg(fig, master=chart_win)
+    canvas.draw()
+    canvas.get_tk_widget().pack(fill="both", expand=True)
+
 
 # === Điều hướng trang ===
 nav_frame = tb.Frame(app)
@@ -231,6 +348,9 @@ action_frame.pack()
 tb.Button(action_frame, text="➕ Thêm", width=15, bootstyle="success", command=open_add_window).grid(row=0, column=0, padx=10)
 tb.Button(action_frame, text="✏️ Sửa", width=15, bootstyle="warning", command=open_update_window).grid(row=0, column=1, padx=10)
 tb.Button(action_frame, text="🗑️ Xoá", width=15, bootstyle="danger", command=open_delete_window).grid(row=0, column=2, padx=10)
+tb.Button(action_frame, text="📊 Biểu đồ", width=15, bootstyle="secondary", command=open_chart_window).grid(row=0, column=3, padx=10)
+tb.Button(action_frame, text="🏆 Top điểm 10", width=15, bootstyle="info", command=show_top_provinces_chart_gui).grid(row=0, column=4, padx=10)
+
 
 
 
