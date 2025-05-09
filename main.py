@@ -1,3 +1,4 @@
+"""Module chính, chứa giao diện và các chức năng chính của ứng dụng."""
 import ttkbootstrap as tb
 from ttkbootstrap.constants import *
 from tkinter import messagebox
@@ -14,15 +15,18 @@ app.state("zoomed")
 
 # Biến toàn cục
 df = load_scores()
+#Số học sinh trên mỗi trang
 ROWS_PER_PAGE = 50
 current_page = 0
 total_rows = 0
 total_pages = 0
 
 def auto_save():
+    """Hàm tự động lưu dữ liệu vào file scores.csv"""
     df.to_csv("scores.csv", index=False)
 
 def show_page(page):
+    """Hàm hiển thị trang dữ liệu trong Treeview"""
     global current_page
     current_page = page
     tree.delete(*tree.get_children())
@@ -35,31 +39,37 @@ def show_page(page):
     lbl_page.config(text=f"Trang {current_page + 1} / {total_pages}")
 
 def next_page():
+    """Hàm chuyển đến trang tiếp theo"""
     if current_page < total_pages - 1:
         show_page(current_page + 1)
 
 def prev_page():
+    """Hàm chuyển đến trang trước đó"""
     if current_page > 0:
         show_page(current_page - 1)
 
 def confirm_add_hook():
+    """Hàm gọi lại sau khi thêm học sinh thành công"""
     global total_rows, total_pages
     total_rows, total_pages = update_pagination(df, ROWS_PER_PAGE)
     show_page(0)
     auto_save()
 
 def confirm_update_hook():
+    """Hàm gọi lại sau khi cập nhật học sinh thành công"""
     show_page(current_page)
     auto_save()
 
 def confirm_delete_hook():
+    """Hàm gọi lại sau khi xóa học sinh thành công"""
     global total_rows, total_pages
     total_rows, total_pages = update_pagination(df, ROWS_PER_PAGE)
     show_page(0)
     auto_save()
 
-# Hàm mở cửa sổ thêm học sinh
+
 def open_add_window():
+    """Hàm mở cửa sổ thêm học sinh"""
     global df
     form = tb.Toplevel(app)
     form.title("➕ Thêm học sinh")
@@ -116,6 +126,7 @@ def open_add_window():
     lang_code_combo.set("N1 - Tiếng Anh")
 
     def confirm_add():
+        """Hàm kiểm tra lỗi trước khi thêm học sinh"""
         global df
         try:
             ten_so = combo_so.get()
@@ -139,6 +150,7 @@ def open_add_window():
 
 # Hàm mở cửa sổ cập nhật học sinh
 def open_update_window():
+    """Hàm mở cửa sổ cập nhật học sinh"""
     global df
     form = tb.Toplevel(app)
     form.title("✏️ Cập nhật học sinh")
@@ -153,14 +165,15 @@ def open_update_window():
     entry_widgets = {}
 
     def fetch_and_fill():
+        """Hàm tìm kiếm và điền thông tin học sinh vào form"""
         global df
-        sid = entry_sid.get().strip()
-        if sid not in df["Student ID"].values:
+        student_id = entry_sid.get().strip()
+        if student_id not in df["Student ID"].values:
             messagebox.showerror("Lỗi", "Không tìm thấy học sinh.")
             return
         for widget in content_frame.winfo_children():
             widget.destroy()
-        student = df[df["Student ID"] == sid].iloc[0]
+        student = df[df["Student ID"] == student_id].iloc[0]
         for field in df.columns[1:]:
             tb.Label(content_frame, text=field).pack()
             val = str(student[field])
@@ -175,10 +188,10 @@ def open_update_window():
                 values = {}
                 for k, w in entry_widgets.items():
                     values[k] = float(w.get()) if k != "Foreign language code" else w.get().strip()
-                df = update_student(df, sid, values)
+                df = update_student(df, student_id, values)
                 confirm_update_hook()
                 form.destroy()
-                messagebox.showinfo("✅ Thành công", f"Đã cập nhật học sinh {sid}.")
+                messagebox.showinfo("✅ Thành công", f"Đã cập nhật học sinh {student_id}.")
             except ValueError as e:
                 messagebox.showerror("Lỗi", str(e))
 
@@ -188,6 +201,7 @@ def open_update_window():
 
 # Hàm mở cửa sổ xóa học sinh
 def open_delete_window():
+    """Hàm mở cửa sổ xóa học sinh"""
     global df
     form = tb.Toplevel(app)
     form.title("🗑️ Xoá học sinh")
@@ -199,14 +213,14 @@ def open_delete_window():
 
     def confirm_delete():
         global df
-        sid = entry_sid.get().strip()
-        if not messagebox.askyesno("Xác nhận xóa", f"Bạn có chắc chắn muốn xóa học sinh với mã {sid}?"):
+        student_id = entry_sid.get().strip()
+        if not messagebox.askyesno("Xác nhận xóa", f"Bạn có chắc chắn muốn xóa học sinh với mã {student_id}?"):
             return
         try:
-            df = delete_student(df, sid)
+            df = delete_student(df, student_id)
             confirm_delete_hook()
             form.destroy()
-            messagebox.showinfo("✅ Đã xoá", f"Học sinh {sid} đã bị xoá.")
+            messagebox.showinfo("✅ Đã xoá", f"Học sinh {student_id} đã bị xoá.")
         except ValueError as e:
             messagebox.showerror("Lỗi", str(e))
 
@@ -214,6 +228,7 @@ def open_delete_window():
 
 # Tìm kiếm nhanh
 def search_student():
+    """Hàm tìm kiếm học sinh theo mã học sinh"""
     global df
     keyword = entry_search.get().strip()
     if not keyword:

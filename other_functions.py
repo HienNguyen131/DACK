@@ -1,3 +1,6 @@
+"""Module chứa các hàm hỗ trợ để vẽ biểu đồ và thống kê dữ liệu cho ứng dụng.
+Gồm vẽ biểu đồ hình hộp, biểu đồ cột, thống kê điểm trung binh, xuất dữ liệu ra file excel, tính toán số trang,
+xếp hạng các tỉnh có nhiều thí sinh đạt điểm 10."""
 import pandas as pd
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
@@ -131,11 +134,12 @@ def open_chart_window(app, df):
     tb.Button(chart_win, text="📈 Hiện biểu đồ", bootstyle="primary", command=confirm_plot).pack(pady=15)
 
 def show_top_provinces_chart_gui(app, df):
+    """Hàm vẽ biểu đồ xép hạng các tỉnh có nhiều thí sinh đạt điểm 10"""
     chart_win = tb.Toplevel(app)
     chart_win.title("🏆 Top tỉnh có nhiều thí sinh đạt điểm 10")
-    #chart_win.geometry("1000x600")
-    chart_win.state("zoomed")
+    chart_win.geometry("1000x600")
     df["Mã sở"] = df["Student ID"].astype(str).str[:2]
+    #Lọc lấy mã sở
     mon_thi = ["Mathematics", "Literature", "Foreign language", "Physics", "Chemistry",
                "Biology", "History", "Geography", "Civic education"]
     df["Có điểm 10"] = df[mon_thi].apply(lambda row: any(score == 10 for score in row), axis=1)
@@ -164,6 +168,7 @@ def export_to_excel(df):
     messagebox.showinfo("✅ Xuất thành công", f"Dữ liệu đã được lưu vào {filepath}")
 
 def show_average_scores(app, df):
+    """Hàm hiển thị thống kê điểm trung bình cho các môn học"""
     stats_win = tb.Toplevel(app)
     stats_win.title("📈 Thống kê điểm trung bình")
     stats_win.geometry("800x400")
