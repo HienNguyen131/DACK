@@ -8,7 +8,9 @@ from other_functions import update_pagination, open_chart_window, show_top_provi
 # Khởi tạo ứng dụng
 app = tb.Window(themename="cosmo")
 app.title("📊 Phân tích điểm thi THPT 2023")
-app.geometry("3000x3000")
+# app.geometry("3000x3000")
+app.state("zoomed")
+
 
 # Biến toàn cục
 df = load_scores()
@@ -18,7 +20,7 @@ total_rows = 0
 total_pages = 0
 
 def auto_save():
-    df.to_csv("diem_thi_thpt_2023_autosave.csv", index=False)
+    df.to_csv("scores.csv", index=False)
 
 def show_page(page):
     global current_page
@@ -65,7 +67,7 @@ def open_add_window():
     form.resizable(False, False)
 
     tb.Label(form, text="Chọn mã sở GDĐT:", font=("Segoe UI", 10, "bold")).pack(pady=5)
-    ma_so_df = pd.read_csv("D:/PythonProgrammingFinalProject/DACK/ma_so_ten_so_gddt.csv", dtype={"Mã sở": str})
+    ma_so_df = pd.read_csv("ma_so_ten_so_gddt.csv", dtype={"Mã sở": str})
     ma_so_dict = dict(zip(ma_so_df["Tên sở GDĐT"], ma_so_df["Mã sở"]))
     combo_so = tb.Combobox(form, values=list(ma_so_dict.keys()), bootstyle="info")
     combo_so.pack(pady=5)

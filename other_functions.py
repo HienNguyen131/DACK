@@ -7,22 +7,30 @@ from tkinter import messagebox
 import os
 
 def update_pagination(df, rows_per_page):
+    """Hàm tính số trang để hiển thị"""
+    #Tính tổng số hàm có trong dataset
     total_rows = len(df)
+    #Tính tổng số trang
     total_pages = (total_rows + rows_per_page - 1) // rows_per_page
     return total_rows, total_pages
 
 def plot_score_distribution(subject, df):
+    """Hàm vẽ biểu đồ phân bố điểm cho một môn học cụ thể"""
+    #Khi chọn ngoại ngữ, do có nhiều loại ngoại ngữ nên nhóm chỉ xét theo mã N1 là Tiếng Anh.
+    #Lọc dữ liệu lần nữa là do theo theo khối nên sẽ có môn ngoài khối thì sẽ không thi hoặc bỏ thi gì đó,
+    #nên sẽ không liệt kê, vậy nên sẽ chỉ xét có điểm thi tối thiểu là 0.25, điểm 1 câu trắc nghiệm.
     if subject == "Foreign language":
-        data = df[(df["Foreign language code"] == "N1") & (df["Foreign language"] >= 0.5)]["Foreign language"]
+        data = df[(df["Foreign language code"] == "N1") & (df["Foreign language"] >= 0.25)]["Foreign language"]
         title = "Phổ điểm môn Tiếng Anh (Mã N1)"
     else:
-        data = df[df[subject] >= 0.5][subject]
+        data = df[df[subject] > 0.25][subject]
         title = f"Phổ điểm môn {subject}"
     bins = [round(x * 0.25, 2) for x in range(0, 41)]
     counts = pd.cut(data, bins=bins, right=True, include_lowest=True).value_counts().sort_index()
     labels = [f"{interval.left:.2f}-{interval.right:.2f}" for interval in counts.index]
     values = counts.values
-    plt.figure(figsize=(14, 6))
+    plt.figure(figsize=(14, 6), num=title)
+    #Biểu đồ cột
     bars = plt.bar(labels, values, edgecolor="black")
     for bar, count in zip(bars, values):
         plt.text(bar.get_x() + bar.get_width() / 2, bar.get_height(), str(count),
@@ -35,37 +43,79 @@ def plot_score_distribution(subject, df):
     plt.tight_layout()
     plt.show()
 
-def plot_boxplot(df):
-    score_columns = [
-        "Mathematics", "Literature", "Foreign language", "Physics",
-        "Chemistry", "Biology", "History", "Geography", "Civic education"
+def plot_boxplot(subject, df):
+    """Hàm vẽ biểu đồ hộp cho một môn học cụ thể"""
+    if subject == "Foreign language":
+        data = df[(df["Foreign language code"] == "N1") & (df["Foreign language"] >= 0.5)]["Foreign language"]
+        title = "Phổ điểm môn Tiếng Anh (Mã N1)"
+    else:
+        data = df[df[subject] >= 0.25][subject]
+        title = f"Phổ điểm môn {subject}"
+
+    # Tính toán thống kê
+    avg = data.mean()
+    median = data.median()
+    min_score = data.min()
+    max_score = data.max()
+    std_dev = data.std()
+    count = len(data)
+
+    # Tạo biểu đồ
+    fig, ax = plt.subplots(figsize=(10, 6), num=title)  # Điều chỉnh kích thước để có không gian cho bảng bên cạnh
+    ax.boxplot(data, vert=True, patch_artist=True)
+    ax.set_title(f"Phân bố điểm môn {subject}", fontsize=14)
+    ax.set_ylabel("Điểm")
+    ax.grid(axis="y", linestyle="--", alpha=0.6)
+    #Bảng thống kê điểm
+    stats_data = [
+        ["Số lượng", f"{count}"],
+        ["Trung bình", f"{avg:.2f}"],
+        ["Trung vị", f"{median:.2f}"],
+        ["Min", f"{min_score:.2f}"],
+        ["Max", f"{max_score:.2f}"],
+        ["Độ lệch chuẩn", f"{std_dev:.2f}"]
     ]
-    plt.figure(figsize=(12, 6))
-    df[score_columns].boxplot()
-    plt.title("Phân bố điểm các môn - THPT 2023", fontsize=14)
-    plt.ylabel("Điểm")
-    plt.xticks(rotation=45)
-    plt.grid(axis="y", linestyle="--", alpha=0.6)
+    table = plt.table(cellText=stats_data,
+                      colLabels=["Thông tin", "Giá trị"],
+                      cellLoc='center',
+                      colLoc='center',
+                      loc='right')
+    table.scale(1, 1.5)  
+    plt.subplots_adjust(right=0.75)  
     plt.tight_layout()
     plt.show()
 
 def open_chart_window(app, df):
+    """Hàm mở cửa sổ vẽ biểu đồ"""
     chart_win = tb.Toplevel(app)
     chart_win.title("📊 Xem biểu đồ")
     chart_win.geometry("300x250")
     chart_win.resizable(False, False)
 
     tb.Label(chart_win, text="Chọn môn:", font=("Segoe UI", 10, "bold")).pack(pady=10)
-    subjects = {"Toán": "Mathematics", "Văn": "Literature", "Tiếng Anh (N1)": "Foreign language"}
+    # Danh sách các môn học để chọn vẽ biểu đổ
+    subjects = {
+    "Toán": "Mathematics",
+    "Văn": "Literature",
+    "Tiếng Anh (N1)": "Foreign language",
+    "Vật lý": "Physics",
+    "Hóa học": "Chemistry",
+    "Sinh học": "Biology",
+    "Lịch sử": "History",
+    "Địa lý": "Geography",
+    "Giáo dục công dân": "Civic education"}
+    #Combobox để chọn môn học
     combo_subject = tb.Combobox(chart_win, values=list(subjects.keys()), bootstyle="info")
     combo_subject.pack(pady=5)
 
     tb.Label(chart_win, text="Chọn loại biểu đồ:", font=("Segoe UI", 10, "bold")).pack(pady=10)
     chart_type = tb.StringVar(value="Bar")
+    #Radiobutton để chọn loại biểu đồ
     tb.Radiobutton(chart_win, text="Biểu đồ cột", variable=chart_type, value="Bar").pack(anchor="w", padx=10)
     tb.Radiobutton(chart_win, text="Biểu đồ hộp", variable=chart_type, value="Box").pack(anchor="w", padx=10)
 
     def confirm_plot():
+        """Hàm xác nhận và vẽ biểu đồ"""
         key = combo_subject.get()
         if key not in subjects and chart_type.get() == "Bar":
             messagebox.showerror("Lỗi", "Vui lòng chọn môn hợp lệ.")
@@ -75,20 +125,22 @@ def open_chart_window(app, df):
             subject_col = subjects[key]
             plot_score_distribution(subject_col, df)
         else:
-            plot_boxplot(df)
+            subject_col = subjects[key]
+            plot_boxplot(subject_col,df)
 
     tb.Button(chart_win, text="📈 Hiện biểu đồ", bootstyle="primary", command=confirm_plot).pack(pady=15)
 
 def show_top_provinces_chart_gui(app, df):
     chart_win = tb.Toplevel(app)
     chart_win.title("🏆 Top tỉnh có nhiều thí sinh đạt điểm 10")
-    chart_win.geometry("1000x600")
+    #chart_win.geometry("1000x600")
+    chart_win.state("zoomed")
     df["Mã sở"] = df["Student ID"].astype(str).str[:2]
     mon_thi = ["Mathematics", "Literature", "Foreign language", "Physics", "Chemistry",
                "Biology", "History", "Geography", "Civic education"]
     df["Có điểm 10"] = df[mon_thi].apply(lambda row: any(score == 10 for score in row), axis=1)
     top_scores = df[df["Có điểm 10"]].groupby("Mã sở").size()
-    ma_so_df = pd.read_csv("D:/PythonProgrammingFinalProject/DACK/ma_so_ten_so_gddt.csv", dtype={"Mã sở": str})
+    ma_so_df = pd.read_csv("ma_so_ten_so_gddt.csv", dtype={"Mã sở": str})
     merged = pd.DataFrame({"Mã sở": top_scores.index, "Số HS": top_scores.values})
     merged = merged.merge(ma_so_df, on="Mã sở")
     top10 = merged.sort_values("Số HS", ascending=False).head(10)
@@ -106,7 +158,7 @@ def show_top_provinces_chart_gui(app, df):
     canvas.get_tk_widget().pack(fill="both", expand=True)
 
 def export_to_excel(df):
-    base_dir = "D:/PythonProgrammingFinalProject/DACK"
+    base_dir = ""
     filepath = os.path.join(base_dir, "diem_thi_thpt_2023_xuat.xlsx")
     df.to_excel(filepath, index=False)
     messagebox.showinfo("✅ Xuất thành công", f"Dữ liệu đã được lưu vào {filepath}")
