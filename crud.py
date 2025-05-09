@@ -1,7 +1,8 @@
 import pandas as pd
 import os
 
-SCORES_FILE = "scores_filled.csv"
+# Đường dẫn đến file lưu trữ dữ liệu điểm số
+SCORES_FILE = "D:/PythonProgrammingFinalProject/DACK/scores_filled.csv"
 
 def load_scores():
     if os.path.exists(SCORES_FILE):
@@ -14,6 +15,21 @@ def load_scores():
 
 def save_scores(df):
     df.to_csv(SCORES_FILE, index=False)
+
+def validate_scores(values):
+    score_columns = [
+        "Mathematics", "Literature", "Foreign language", "Physics",
+        "Chemistry", "Biology", "History", "Geography", "Civic education"
+    ]
+    for key, value in values.items():
+        if key in score_columns:
+            try:
+                score = float(value)
+                if not 0 <= score <= 10:
+                    raise ValueError(f"Điểm môn {key} phải nằm trong khoảng từ 0 đến 10.")
+            except (ValueError, TypeError):
+                raise ValueError(f"Điểm môn {key} phải là một số hợp lệ.")
+    return True
 
 def generate_student_id(df, ma_so, mode, tail_input=None):
     if mode == "auto":
@@ -29,12 +45,15 @@ def generate_student_id(df, ma_so, mode, tail_input=None):
 def add_student(df, sid, values):
     if sid in df["Student ID"].values:
         raise ValueError("Mã học sinh đã tồn tại.")
+    validate_scores(values)
     df = pd.concat([df, pd.DataFrame([{"Student ID": sid, **values}])], ignore_index=True)
     save_scores(df)
     return df
+
 def update_student(df, sid, values):
     if sid not in df["Student ID"].values:
         raise ValueError("Mã học sinh không tồn tại.")
+    validate_scores(values)
     for key, val in values.items():
         df.loc[df["Student ID"] == sid, key] = val
     save_scores(df)
@@ -44,13 +63,5 @@ def delete_student(df, sid):
     if sid not in df["Student ID"].values:
         raise ValueError("Mã học sinh không tồn tại.")
     df = df[df["Student ID"] != sid]
-    save_scores(df)
-    return df
-
-def delete_multiple_students(df, sid_list):
-    not_found = [sid for sid in sid_list if sid not in df["Student ID"].values]
-    if not_found:
-        raise ValueError(f"Mã không tồn tại: {', '.join(not_found)}")
-    df = df[~df["Student ID"].isin(sid_list)]
     save_scores(df)
     return df
